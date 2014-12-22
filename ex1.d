@@ -1,60 +1,65 @@
-/*------------------------------
- MGW 10.08.2013 23:46:10
- ---------------------------------
- Example of the work with the library QtE.d
- -------------------------------*/
-// win: dmd main.d qte.d -L/SUBSYSTEM:WINDOWS:5.01
-// lin: dmd main.d qte.d -L-ldl
+// Compile:
+// ------------------------------
+// Linux:    dmd ex1.d qte.d -L-ldl
+// Windows:  dmd ex1.d qte.d
+// ------------------------------
 
-import qte;                  // Work of Qt
-import core.runtime;
+import qte;                                   // work with Qt
+import core.runtime;                    // parametr start
+import std.stdio;                          // writeln();
 
-class GenaMainWin: QMainWindow {
-	QStatusBar sb1;
-	QTextEdit textEd7;
-	QTextEdit textEd8;
-	QVBoxLayout vbl1;
-	QHBoxLayout hbl1;
-	QLCDNumber lcd1;
-	QSpinBox spinb1;
-	gWidget w1;
-	
-	this() {
-		super();
-		w1 = new gWidget(null, 0);
-		setWindowTitle(new QString("This is my main window."w));
-		resize(400, 100);
-		sb1 = new QStatusBar(null);
-		setStatusBar(sb1);
-		textEd7 = new QTextEdit(null);
-		textEd7.append(new QString("<b>This is QTextEdit</b>"w));
-		lcd1 = new QLCDNumber(null); lcd1.setSegmentStyle(QLCDNumber.SegmentStyle.Flat);
-		spinb1 = new QSpinBox(null);
-		hbl1 = new QHBoxLayout;
-		vbl1 = new QVBoxLayout();
-		vbl1.addWidget(textEd7);
-		hbl1.addWidget(spinb1); hbl1.addWidget(lcd1);
-		vbl1.addLayout(hbl1);
-		w1.setLayout(vbl1);
-		setCentralWidget(w1);
-		// Example of binding standard signal to a standard slot
-		spinb1.connect(spinb1.QtObj(), MSS("valueChanged(int)", QSIGNAL)
-			, lcd1.QtObj(), MSS("display(int)", QSLOT),  1);
-	}
-}
-	
 int main(string[] args) {
-	// Load library QtCore, QtGui, QtE.
-	int rez = LoadQt(); if (rez==1) return 1;  // Error load libs
-	
-	QApplication app = new QApplication;  // Created, but the constructor of Qt is not caused by
-	 // It is a call constructor Qt::QApplication
-	(app.adrQApplication())(cast(void*)app.bufObj, &Runtime.cArgs.argc, Runtime.cArgs.argv);
+    QApplication app;       // Application
+    QTextCodec UTF_8;
+    QTextCodec WIN_1251;
+    QTextCodec IBM866;  
+    QString tmpQs;
+    QByteArray ba;
+    QLabel label;
 
-	// Create main window
-	GenaMainWin genaMain = new GenaMainWin();
-	gWidget w1 = new gWidget(null, 0);
-	genaMain.show();
-	
-	return app.exec();  // Main loop 
+     
+    // Проверим режим загрузки. Если есть '--debug' старт в отладочном режиме с показом диагностики загрузки QtE
+    // Check the boot mode. If there is a '--debug' start in debug mode with display of the diagnostic boot QtE
+    bool fDebug; foreach(arg; args) if (arg=="--debug") fDebug = true; 
+    
+    // Загрузка графической библиотеки. fDebug=F без диагностики, T=Диагностика загрузки
+    // Load the graphics library. fDebug=F without a diagnosis, T=Diagnostics download enable
+    int rez = LoadQt( dll.Core | dll.Gui | dll.QtE, fDebug); if (rez==1) return 1;  // Ошибка загрузки библиотеки
+    
+    // Инициализация Qt. Посл параметр T=GUI, F=консольное приложение
+    // Initialization Of Qt. The last parameter T=GUI F=console application
+    app = new QApplication(&Runtime.cArgs.argc, Runtime.cArgs.argv, 1); 
+    
+    // Инициализация внутренних перекодировок
+    // Initialize internal levels
+    tmpQs = new QString(); 
+    UTF_8 = new QTextCodec("UTF-8");            // Linux
+    WIN_1251 = new QTextCodec("Windows-1251");  // Windows
+    IBM866 = new QTextCodec("IBM 866");         // DOS
+    
+    // Сформируем строку с приветствием
+    // Generate the string with a greeting
+    tmpQs.toUnicode(cast(char*)("<h2>Привет из (Hello from)  <font color=red size=5>QtE.d</font></h2>".ptr), UTF_8);
+
+    // Изготовим QLabel
+    // make QLabel
+    label = new QLabel(null);
+    label.setText(tmpQs); label.setAlignment(QtE.AlignmentFlag.AlignCenter); // We write the text and alignment
+    label.resize(300, 130); // размер label
+    
+    // Пример работы с DOS консолью
+    // Example of working with the DOS console
+    ba = new QByteArray(cast(char*)("Привет из QtE.d - обратите внимание на перекодировку в DOS".ptr));  // This in UTF-8
+    tmpQs.toUnicode(cast(char*)ba.data(), UTF_8);  // This in Ubicod   это в Юникоде
+    version(Windows) {  // для win вернее дос нужна особая перекодировка // for win rather DOS needs a special transcoding
+        tmpQs.fromUnicode(cast(char*)ba.data(), IBM866);
+    }
+    version(linux) {    // в Linux работает UTF-8, но можно конвертнуть в любую другую таблицу // in Linux is UTF-8, but you can конвертнуть in any other table
+        tmpQs.fromUnicode(cast(char*)ba.data(), UTF_8);
+    }
+    printf("%s", ba.data());
+
+    label.show();
+    
+    return app.exec();
 }
